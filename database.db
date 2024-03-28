@@ -1,0 +1,53 @@
+from flask import Flask, render_template, request, redirect, url_for
+import sqlite3
+
+app = Flask(__name__)
+
+# Database configuration
+DATABASE = 'database.db'
+
+# Function to establish database connection
+def get_db():
+    db = sqlite3.connect(DATABASE)
+    return db
+
+# Function to execute SQL queries
+def query_db(query, args=(), one=False):
+    db = get_db()
+    cursor = db.execute(query, args)
+    rv = cursor.fetchall()
+    cursor.close()
+    db.commit()
+    db.close()
+    return (rv[0] if rv else None) if one else rv
+
+# Home page
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+# Login route
+@app.route('/login', methods=['POST'])
+def login():
+    username = request.form['username']
+    password = request.form['password']
+    
+    # Vulnerable SQL query susceptible to SQL injection
+    user = query_db('SELECT * FROM users WHERE username = ? AND password = ?', [username, password], one=True)
+    
+    if user:
+        # Redirect to the admin page if logged in successfully
+        if user['username'] == 'admin':
+            return redirect(url_for('admin'))
+        else:
+            return "Welcome, " + user['username'] + "!"
+    else:
+        return "Invalid username or password."
+
+# Admin page
+@app.route('/admin')
+def admin():
+    return "Welcome, Admin!"
+
+if __name__ == '__main__':
+    app.run(debug=True)
